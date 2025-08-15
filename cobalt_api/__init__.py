@@ -1,1 +1,1 @@
-from .cobalt_api import CobaltAPI, CobaltAPIError
+from .cobalt_api import CobaltAPIClient, CobaltAPIError, CobaltAPIClientException

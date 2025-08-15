@@ -2,15 +2,18 @@ import re
 import os
 import shutil
 import dotenv
+from pathlib import Path
 from slack_bolt import App
-from cobalt_api import CobaltAPI, CobaltAPIError
+from cobalt_api import CobaltAPIClient, CobaltAPIError, CobaltAPIClientException
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 
 dotenv.load_dotenv()
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 client = app.client
-cobalt_client = CobaltAPI(os.environ["COBALT_API_INSTANCE"])
+cobalt_client = CobaltAPIClient(os.environ["COBALT_API_INSTANCE"])
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR")
+OUTPUT_DIR = "output" if not OUTPUT_DIR else OUTPUT_DIR
 
 
 def recursive_url_search(elements):
@@ -25,22 +28,24 @@ def recursive_url_search(elements):
     return urls
 
 
-@app.message(re.compile(r"(youtube.com|youtu.be)"))
-def raw_file_reply(message, say):
-    urls = recursive_url_search(message["blocks"])
-    ts = message["ts"]
-    for index, url in enumerate(urls):
-        try:
-            save_path = f"output/{str(ts).replace('.', '_')}_{index}.mp4"
-            cobalt_client.stream_to_file(url, save_path)
-            client.files_upload_v2(channel=message["channel"], file=save_path, thread_ts=ts)
-            os.remove(save_path)
-        except CobaltAPIError as e:
-            print(e)
-
 @app.event("message")
-def ignore_message():
-    pass
+def raw_file_reply(message):
+    blocks = message.get("blocks")
+    if not blocks:
+        return
+    urls = recursive_url_search(blocks)
+    ts = message["ts"]
+    for url in urls:
+        if re.search(r"(youtube\.com|youtu\.be)", url):
+            try:
+                cobalt_response = cobalt_client.post(url)
+                save_path = str(Path(OUTPUT_DIR)/Path(cobalt_response.filename))
+                cobalt_response.stream_to_file(save_path)
+                client.files_upload_v2(channel=message["channel"], file=save_path, thread_ts=ts)
+                os.remove(save_path)
+            except (CobaltAPIError, CobaltAPIClientException) as e:
+                print(e)
+
 
 try:
     shutil.rmtree("output")

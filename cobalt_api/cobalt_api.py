@@ -1,29 +1,50 @@
+from typing import BinaryIO, Any
+
 import requests
 
 
-class CobaltAPI:
+class CobaltAPITunnelResponse:
+    def __init__(self, stream: requests.Response, original_response_json: Any):
+        self.stream = stream
+        self._original_response_json = original_response_json
+
+    @property
+    def filename(self):
+        return self._original_response_json["filename"]
+
+    def stream_to_file(self, file: BinaryIO | str, chunk_size=8192):
+        if isinstance(file, str):
+            file = open(file, "wb")
+        with file as f:
+            for chunk in self.stream.iter_content(chunk_size=chunk_size):
+                f.write(chunk)
+
+
+class CobaltAPIClient:
     def __init__(self, instance_url: str) -> None:
         self.instance_url = instance_url
 
-    def stream(self, url: str) -> requests.Response:
+    def post(self, url: str) -> CobaltAPITunnelResponse:
         response = requests.post(self.instance_url, json={
             "url": url
         }, headers={
             "Accept": "application/json",
             "Content-Type": "application/json"
         }).json()
-        if response["status"] == "error":
-            raise CobaltAPIError(response["error"])
+        status = response["status"]
+        if status == "error":
+            raise CobaltAPIError(response["error"]["code"])
+        elif status != "tunnel":
+            raise CobaltAPIClientException(f"Unsupported non-error status: {status}")
         stream = requests.get(response["url"], stream=True)
-        stream.raise_for_status()
-        return stream
-
-    def stream_to_file(self, url: str, file_path: str, chunk_size: int = 8192) -> None:
-        stream = self.stream(url)
-        with open(file_path, "wb") as f:
-            for chunk in stream.iter_content(chunk_size=chunk_size):
-                f.write(chunk)
-
+        try:
+            stream.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise CobaltAPIError(f"Tunnel URL errored out: {e}")
+        return CobaltAPITunnelResponse(stream, response)
 
 class CobaltAPIError(Exception):
+    pass
+
+class CobaltAPIClientException(Exception):
     pass
