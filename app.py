@@ -47,9 +47,17 @@ def raw_file_reply(message):
                 print(e)
 
 
-try:
-    shutil.rmtree("output")
-except FileNotFoundError:
-    pass
-os.mkdir("output")
-SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+def clean_output_dir():
+    try:
+        shutil.rmtree(OUTPUT_DIR)
+    except FileNotFoundError:
+        pass
+
+
+if __name__ == "__main__":
+    try:
+        clean_output_dir()
+        os.mkdir(OUTPUT_DIR)
+        SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+    except KeyboardInterrupt:
+        clean_output_dir()
