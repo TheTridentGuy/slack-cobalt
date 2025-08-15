@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cobalt_api"
+version = "1.0"
+dependencies = ["requests"]
+
+[tool.setuptools]
+packages = ["cobalt_api"]
+package-dir = {"cobalt_api" = "."}
