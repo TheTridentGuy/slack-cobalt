@@ -21,16 +21,15 @@ class CobaltAPITunnelResponse:
 
 
 class CobaltAPIClient:
-    def __init__(self, instance_url: str) -> None:
+    def __init__(self, instance_url: str, api_key: str = None) -> None:
         self.instance_url = instance_url
+        self.api_key = api_key
 
     def post(self, url: str) -> CobaltAPITunnelResponse:
-        response = requests.post(self.instance_url, json={
-            "url": url
-        }, headers={
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }).json()
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.api_key:
+            headers.update({"Authorization": f"Api-Key {self.api_key}"})
+        response = requests.post(self.instance_url, json={"url": url}, headers=headers).json()
         status = response["status"]
         if status == "error":
             raise CobaltAPIError(response["error"]["code"])
@@ -43,8 +42,10 @@ class CobaltAPIClient:
             raise CobaltAPIError(f"Tunnel URL errored out: {e}")
         return CobaltAPITunnelResponse(stream, response)
 
+
 class CobaltAPIError(Exception):
     pass
+
 
 class CobaltAPIClientException(Exception):
     pass

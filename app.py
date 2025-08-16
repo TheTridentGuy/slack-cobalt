@@ -11,7 +11,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 dotenv.load_dotenv()
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 client = app.client
-cobalt_client = CobaltAPIClient(os.environ["COBALT_API_INSTANCE"])
+cobalt_client = CobaltAPIClient(os.environ["COBALT_API_INSTANCE"], os.environ.get("COBALT_API_KEY"))
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR")
 OUTPUT_DIR = "output" if not OUTPUT_DIR else OUTPUT_DIR
 
