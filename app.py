@@ -1,12 +1,12 @@
-import re
 import os
 import shutil
-import dotenv
 from pathlib import Path
+
+import dotenv
 from slack_bolt import App
-from cobalt_api import CobaltAPIClient, CobaltAPIError, CobaltAPIClientException
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
+from cobalt_api import CobaltAPIClient, CobaltAPIError, CobaltAPIClientException
 
 dotenv.load_dotenv()
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
@@ -36,15 +36,14 @@ def raw_file_reply(message):
     urls = recursive_url_search(blocks)
     ts = message["ts"]
     for url in urls:
-        if re.search(r"(youtube\.com|youtu\.be)", url):
-            try:
-                cobalt_response = cobalt_client.post(url)
-                save_path = str(Path(OUTPUT_DIR)/Path(cobalt_response.filename))
-                cobalt_response.stream_to_file(save_path)
-                client.files_upload_v2(channel=message["channel"], file=save_path, thread_ts=ts)
-                os.remove(save_path)
-            except (CobaltAPIError, CobaltAPIClientException) as e:
-                print(e)
+        try:
+            cobalt_response = cobalt_client.post(url)
+            save_path = str(Path(OUTPUT_DIR) / Path(cobalt_response.filename))
+            cobalt_response.stream_to_file(save_path)
+            client.files_upload_v2(channel=message["channel"], file=save_path, thread_ts=ts)
+            os.remove(save_path)
+        except (CobaltAPIError, CobaltAPIClientException) as e:
+            print(e, url)
 
 
 def clean_output_dir():

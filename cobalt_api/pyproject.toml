@@ -9,4 +9,4 @@ dependencies = ["requests"]
 
 [tool.setuptools]
 packages = ["cobalt_api"]
-package-dir = {"cobalt_api" = "."}
+package-dir = { "cobalt_api" = "." }

@@ -3,7 +3,7 @@ from typing import BinaryIO, Any
 import requests
 
 
-class CobaltAPITunnelResponse:
+class CobaltAPIStreamableResponse:
     def __init__(self, stream: requests.Response, original_response_json: Any):
         self.stream = stream
         self._original_response_json = original_response_json
@@ -20,27 +20,47 @@ class CobaltAPITunnelResponse:
                 f.write(chunk)
 
 
+class CobaltAPITunnelResponse(CobaltAPIStreamableResponse):
+    pass
+
+
+class CobaltAPIRedirectResponse(CobaltAPIStreamableResponse):
+    pass
+
+
 class CobaltAPIClient:
     def __init__(self, instance_url: str, api_key: str = None) -> None:
         self.instance_url = instance_url
         self.api_key = api_key
 
-    def post(self, url: str) -> CobaltAPITunnelResponse:
-        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    def post(self, url: str) -> CobaltAPITunnelResponse | CobaltAPIRedirectResponse | None:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"}
         if self.api_key:
-            headers.update({"Authorization": f"Api-Key {self.api_key}"})
-        response = requests.post(self.instance_url, json={"url": url}, headers=headers).json()
+            headers.update({
+                               "Authorization": f"Api-Key {self.api_key}"})
+        response = requests.post(self.instance_url, json={
+            "url": url}, headers=headers).json()
         status = response["status"]
         if status == "error":
             raise CobaltAPIError(response["error"]["code"])
-        elif status != "tunnel":
+        elif status == "tunnel":
+            stream = requests.get(response["url"], stream=True)
+            try:
+                stream.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                raise CobaltAPIError(f"Tunnel URL errored out: {e}")
+            return CobaltAPITunnelResponse(stream, response)
+        elif status == "redirect":
+            stream = requests.get(response["url"], stream=True)
+            try:
+                stream.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                raise CobaltAPIError(f"Redirect URL errored out: {e}")
+            return CobaltAPIRedirectResponse(stream, response)
+        else:
             raise CobaltAPIClientException(f"Unsupported non-error status: {status}")
-        stream = requests.get(response["url"], stream=True)
-        try:
-            stream.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise CobaltAPIError(f"Tunnel URL errored out: {e}")
-        return CobaltAPITunnelResponse(stream, response)
 
 
 class CobaltAPIError(Exception):
