@@ -18,6 +18,8 @@ class CobaltAPIStreamableResponse:
         with file as f:
             for chunk in self.stream.iter_content(chunk_size=chunk_size):
                 f.write(chunk)
+            if f.tell() == 0:
+                raise CobaltAPIError("Response stream was empty.")
 
 
 class CobaltAPITunnelResponse(CobaltAPIStreamableResponse):

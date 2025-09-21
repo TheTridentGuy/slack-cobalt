@@ -36,13 +36,17 @@ def raw_file_reply(message):
     urls = recursive_url_search(blocks)
     ts = message["ts"]
     for url in urls:
+        save_path = None
         try:
             cobalt_response = cobalt_client.post(url)
             save_path = str(Path(OUTPUT_DIR) / Path(cobalt_response.filename))
             cobalt_response.stream_to_file(save_path)
+            print(message["channel"], save_path, ts)
             client.files_upload_v2(channel=message["channel"], file=save_path, thread_ts=ts)
             os.remove(save_path)
         except (CobaltAPIError, CobaltAPIClientException) as e:
+            if save_path:
+                os.remove(save_path)
             print(e, url)
 
 
